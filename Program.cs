@@ -4,31 +4,37 @@ namespace Radio357Player;
 
 class Program
 {
-    private static IWavePlayer waveOut;
-    private static MediaFoundationReader mediaReader;
+    private static IWavePlayer? waveOut;
+    private static MediaFoundationReader? mediaReader;
     private static bool isPlaying = false;
 
     static async Task Main(string[] args)
     {
-        Console.WriteLine("=================================");
-        Console.WriteLine("   Radio 357 Console Player");
-        Console.WriteLine("=================================");
-        Console.WriteLine();
-
         // Radio 357 stream URLs
         string mp3StreamUrl = "https://stream.rcs.revma.com/an1ugyygzk8uv";
         string aacStreamUrl = "https://stream.rcs.revma.com/ye5kghkgcm0uv";
 
-        Console.WriteLine("Select stream format:");
-        Console.WriteLine("1. MP3 (128 kbps)");
-        Console.WriteLine("2. AAC");
-        Console.Write("\nEnter choice (1 or 2): ");
-        
-        string choice = Console.ReadLine();
-        string streamUrl = choice == "2" ? aacStreamUrl : mp3StreamUrl;
+        // Create menu
+        var menuItems = new List<MenuItem>
+        {
+            new MenuItem("MP3 Stream (128 kbps)", "mp3", mp3StreamUrl),
+            new MenuItem("AAC Stream", "aac", aacStreamUrl),
+            new MenuItem("Exit", "exit")
+        };
 
-        Console.WriteLine($"\nConnecting to Radio 357 ({(choice == "2" ? "AAC" : "MP3")} stream)...");
-        Console.WriteLine();
+        var menu = new ConsoleMenu("Radio 357 Console Player", menuItems);
+        var selectedItem = menu.Show();
+
+        if (selectedItem == null || selectedItem.Value == "exit")
+        {
+            return;
+        }
+
+        string? streamUrl = selectedItem.Tag as string;
+        if (string.IsNullOrEmpty(streamUrl))
+        {
+            return;
+        }
 
         try
         {
@@ -36,7 +42,12 @@ class Program
         }
         catch (Exception ex)
         {
+            Console.Clear();
+            Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine($"Error: {ex.Message}");
+            Console.ResetColor();
+            Console.WriteLine("\nPress any key to exit...");
+            Console.ReadKey();
         }
     }
 
@@ -48,61 +59,79 @@ class Program
             {
                 // Initialize the media reader with the stream URL
                 mediaReader = new MediaFoundationReader(streamUrl);
-                
+
                 // Initialize the wave output device
                 waveOut = new WaveOutEvent();
                 waveOut.Init(mediaReader);
-                
+
                 // Start playback
                 waveOut.Play();
                 isPlaying = true;
 
-                Console.WriteLine("Now playing Radio 357!");
-                Console.WriteLine("Press 'Q' to quit, 'P' to pause/resume, '+/-' to adjust volume");
-                Console.WriteLine();
-
                 float volume = 1.0f;
+                waveOut.Volume = volume;
+
+                // Create control menu
+                var controlMenu = new ConsoleMenu("Now Playing: Radio 357", new List<MenuItem>
+                {
+                    new MenuItem("Pause", "pause"),
+                    new MenuItem("Volume Up (+10%)", "volume_up"),
+                    new MenuItem("Volume Down (-10%)", "volume_down"),
+                    new MenuItem("Stop & Quit", "quit")
+                }, clearOnExit: false);
 
                 // Main loop for user commands
                 while (isPlaying)
                 {
-                    if (Console.KeyAvailable)
+                    Console.SetCursorPosition(0, 0);
+
+                    var selectedItem = controlMenu.ShowNonBlocking((status) =>
                     {
-                        var key = Console.ReadKey(true);
+                        string playbackState = waveOut.PlaybackState == PlaybackState.Playing ? "▶ Playing" : "⏸ Paused";
+                        Console.WriteLine($"Status: {playbackState} | Volume: {(int)(volume * 100)}%");
+                    });
 
-                        switch (key.Key)
+                    if (selectedItem != null)
+                    {
+                        switch (selectedItem.Value)
                         {
-                            case ConsoleKey.Q:
-                                Console.WriteLine("\nStopping playback...");
-                                StopPlayback();
-                                isPlaying = false;
-                                break;
-
-                            case ConsoleKey.P:
+                            case "pause":
                                 if (waveOut.PlaybackState == PlaybackState.Playing)
                                 {
                                     waveOut.Pause();
-                                    Console.WriteLine("Paused");
+                                    // Update menu item text
+                                    selectedItem.DisplayText = "Resume";
+                                    selectedItem.Value = "resume";
                                 }
                                 else if (waveOut.PlaybackState == PlaybackState.Paused)
                                 {
                                     waveOut.Play();
-                                    Console.WriteLine("Resumed");
+                                    // Update menu item text
+                                    selectedItem.DisplayText = "Pause";
+                                    selectedItem.Value = "pause";
                                 }
                                 break;
 
-                            case ConsoleKey.OemPlus:
-                            case ConsoleKey.Add:
-                                volume = Math.Min(1.0f, volume + 0.1f);
-                                waveOut.Volume = volume;
-                                Console.WriteLine($"Volume: {(int)(volume * 100)}%");
+                            case "resume":
+                                waveOut.Play();
+                                selectedItem.DisplayText = "Pause";
+                                selectedItem.Value = "pause";
                                 break;
 
-                            case ConsoleKey.OemMinus:
-                            case ConsoleKey.Subtract:
+                            case "volume_up":
+                                volume = Math.Min(1.0f, volume + 0.1f);
+                                waveOut.Volume = volume;
+                                break;
+
+                            case "volume_down":
                                 volume = Math.Max(0.0f, volume - 0.1f);
                                 waveOut.Volume = volume;
-                                Console.WriteLine($"Volume: {(int)(volume * 100)}%");
+                                break;
+
+                            case "quit":
+                                StopPlayback();
+                                isPlaying = false;
+                                Console.Clear();
                                 break;
                         }
                     }
@@ -112,6 +141,7 @@ class Program
             }
             catch (Exception ex)
             {
+                Console.Clear();
                 Console.WriteLine($"Playback error: {ex.Message}");
                 StopPlayback();
             }
