@@ -71,6 +71,28 @@ class Program
                 float volume = 1.0f;
                 waveOut.Volume = volume;
 
+                // Animation variables
+                int animationFrame = 0;
+                string[] visualizerFrames = new[]
+                {
+                    "♪ ♫ ♪ ♫ ♪ ♫",
+                    "♫ ♪ ♫ ♪ ♫ ♪",
+                    "♪ ♫ ♪ ♫ ♪ ♫",
+                    "♫ ♪ ♫ ♪ ♫ ♪"
+                };
+
+                string[] equalizerFrames = new[]
+                {
+                    "▁▂▃▄▅▆▇█▇▆▅▄▃▂▁",
+                    "▂▃▄▅▆▇█▇▆▅▄▃▂▁▂",
+                    "▃▄▅▆▇█▇▆▅▄▃▂▁▂▃",
+                    "▄▅▆▇█▇▆▅▄▃▂▁▂▃▄",
+                    "▅▆▇█▇▆▅▄▃▂▁▂▃▄▅",
+                    "▆▇█▇▆▅▄▃▂▁▂▃▄▅▆",
+                    "▇█▇▆▅▄▃▂▁▂▃▄▅▆▇",
+                    "█▇▆▅▄▃▂▁▂▃▄▅▆▇█"
+                };
+
                 // Create control menu
                 var controlMenu = new ConsoleMenu("Now Playing: Radio 357", new List<MenuItem>
                 {
@@ -87,11 +109,31 @@ class Program
 
                     var selectedItem = controlMenu.ShowNonBlocking((status) =>
                     {
-                        string playbackState = waveOut.PlaybackState == PlaybackState.Playing ? "▶ Playing" : "⏸ Paused";
+                        string playbackState;
+                        string animation = "";
+
+                        if (waveOut?.PlaybackState == PlaybackState.Playing)
+                        {
+                            playbackState = "▶ Playing";
+                            animation = equalizerFrames[animationFrame % equalizerFrames.Length];
+                            Console.ForegroundColor = ConsoleColor.Green;
+                            Console.WriteLine($"{animation}  {visualizerFrames[animationFrame % visualizerFrames.Length]}");
+                            Console.ResetColor();
+                        }
+                        else
+                        {
+                            playbackState = "⏸ Paused";
+                            Console.ForegroundColor = ConsoleColor.Yellow;
+                            Console.WriteLine("▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂  ♪ ♫ ♪ ♫ ♪ ♫");
+                            Console.ResetColor();
+                        }
+
+                        Console.ForegroundColor = ConsoleColor.Cyan;
                         Console.WriteLine($"Status: {playbackState} | Volume: {(int)(volume * 100)}%");
+                        Console.ResetColor();
                     });
 
-                    if (selectedItem != null)
+                    if (selectedItem != null && waveOut != null)
                     {
                         switch (selectedItem.Value)
                         {
@@ -134,6 +176,12 @@ class Program
                                 Console.Clear();
                                 break;
                         }
+                    }
+
+                    // Update animation frame
+                    if (waveOut?.PlaybackState == PlaybackState.Playing)
+                    {
+                        animationFrame++;
                     }
 
                     Thread.Sleep(100);

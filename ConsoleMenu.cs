@@ -98,9 +98,7 @@ public class ConsoleMenu
         // Display status if callback provided
         if (statusDisplayCallback != null)
         {
-            Console.ForegroundColor = ConsoleColor.Green;
             statusDisplayCallback("status");
-            Console.ResetColor();
             Console.WriteLine();
         }
 
