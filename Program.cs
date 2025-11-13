@@ -71,27 +71,11 @@ class Program
                 float volume = 1.0f;
                 waveOut.Volume = volume;
 
-                // Animation variables
-                int animationFrame = 0;
-                string[] visualizerFrames = new[]
-                {
-                    "♪ ♫ ♪ ♫ ♪ ♫",
-                    "♫ ♪ ♫ ♪ ♫ ♪",
-                    "♪ ♫ ♪ ♫ ♪ ♫",
-                    "♫ ♪ ♫ ♪ ♫ ♪"
-                };
-
-                string[] equalizerFrames = new[]
-                {
-                    "▁▂▃▄▅▆▇█▇▆▅▄▃▂▁",
-                    "▂▃▄▅▆▇█▇▆▅▄▃▂▁▂",
-                    "▃▄▅▆▇█▇▆▅▄▃▂▁▂▃",
-                    "▄▅▆▇█▇▆▅▄▃▂▁▂▃▄",
-                    "▅▆▇█▇▆▅▄▃▂▁▂▃▄▅",
-                    "▆▇█▇▆▅▄▃▂▁▂▃▄▅▆",
-                    "▇█▇▆▅▄▃▂▁▂▃▄▅▆▇",
-                    "█▇▆▅▄▃▂▁▂▃▄▅▆▇█"
-                };
+                // Digital equalizer variables
+                Random random = new Random();
+                int numberOfBars = 20;
+                int[] barHeights = new int[numberOfBars];
+                char[] barChars = new[] { '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█' };
 
                 // Create control menu
                 var controlMenu = new ConsoleMenu("Now Playing: Radio 357", new List<MenuItem>
@@ -110,26 +94,66 @@ class Program
                     var selectedItem = controlMenu.ShowNonBlocking((status) =>
                     {
                         string playbackState;
-                        string animation = "";
 
                         if (waveOut?.PlaybackState == PlaybackState.Playing)
                         {
                             playbackState = "▶ Playing";
-                            animation = equalizerFrames[animationFrame % equalizerFrames.Length];
-                            Console.ForegroundColor = ConsoleColor.Green;
-                            Console.WriteLine($"{animation}  {visualizerFrames[animationFrame % visualizerFrames.Length]}");
+
+                            // Update bar heights with smooth transitions
+                            for (int i = 0; i < numberOfBars; i++)
+                            {
+                                // Simulate audio levels with random changes
+                                int targetHeight = random.Next(0, 8);
+
+                                // Smooth transition
+                                if (barHeights[i] < targetHeight)
+                                    barHeights[i] = Math.Min(barHeights[i] + 2, targetHeight);
+                                else if (barHeights[i] > targetHeight)
+                                    barHeights[i] = Math.Max(barHeights[i] - 1, targetHeight);
+                            }
+
+                            // Draw the equalizer
+                            Console.Write("  ");
+                            for (int i = 0; i < numberOfBars; i++)
+                            {
+                                int height = barHeights[i];
+
+                                // Color based on height
+                                if (height >= 6)
+                                    Console.ForegroundColor = ConsoleColor.Red;
+                                else if (height >= 4)
+                                    Console.ForegroundColor = ConsoleColor.Yellow;
+                                else
+                                    Console.ForegroundColor = ConsoleColor.Green;
+
+                                Console.Write(barChars[height]);
+                            }
                             Console.ResetColor();
+                            Console.WriteLine();
                         }
                         else
                         {
                             playbackState = "⏸ Paused";
-                            Console.ForegroundColor = ConsoleColor.Yellow;
-                            Console.WriteLine("▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂  ♪ ♫ ♪ ♫ ♪ ♫");
+
+                            // Reset bars to minimum when paused
+                            for (int i = 0; i < numberOfBars; i++)
+                            {
+                                barHeights[i] = 0;
+                            }
+
+                            // Draw flat equalizer
+                            Console.ForegroundColor = ConsoleColor.DarkGray;
+                            Console.Write("  ");
+                            for (int i = 0; i < numberOfBars; i++)
+                            {
+                                Console.Write('▁');
+                            }
                             Console.ResetColor();
+                            Console.WriteLine();
                         }
 
                         Console.ForegroundColor = ConsoleColor.Cyan;
-                        Console.WriteLine($"Status: {playbackState} | Volume: {(int)(volume * 100)}%");
+                        Console.WriteLine($"  Status: {playbackState} | Volume: {(int)(volume * 100)}%");
                         Console.ResetColor();
                     });
 
@@ -176,12 +200,6 @@ class Program
                                 Console.Clear();
                                 break;
                         }
-                    }
-
-                    // Update animation frame
-                    if (waveOut?.PlaybackState == PlaybackState.Playing)
-                    {
-                        animationFrame++;
                     }
 
                     Thread.Sleep(100);
